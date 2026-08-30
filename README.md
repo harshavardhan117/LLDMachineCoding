@@ -1,20 +1,19 @@
 # LLDMachineCoding
 
-Machine-coding and low-level design practice implementations.
+Collection of machine-coding and low-level design practice implementations.
 
-## Parking Lot — v1
+## Practice modules
 
-An in-memory parking lot for a single facility with one entry/exit flow.
+| Module | Description | Current version |
+| --- | --- | --- |
+| [Parking Lot](ParkingLotDesign/README.md) | In-memory parking allocation, ticketing, and fee calculation. | v1 |
+| BookMyShow | Planned. | — |
 
-### Requirements implemented
+## Versioning approach
 
-- Supports `BIKE`, `CAR`, and `TRUCK` vehicle types.
-- Allocates only an available parking spot of the matching vehicle type.
-- Issues a unique ticket when a vehicle is parked.
-- Records the assigned spot and entry time on the ticket.
-- Calculates charges in rounded-up 30-minute blocks using vehicle-specific rates.
-- Unparks a vehicle through its ticket and releases the exact assigned spot.
-- Demonstrates multiple vehicle entries and exits in `Orchestrator`.
+- `master` contains the latest reviewed version of each module.
+- New iterations are developed on versioned branches such as `v2` and merged through pull requests.
+- Each module owns its own README with version history, requirements, design notes, and implementation details.
 
 ### Current structure
 
