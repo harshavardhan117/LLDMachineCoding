@@ -1,26 +1,9 @@
-# LLDMachineCoding
+# LLD Machine Coding
 
-Collection of machine-coding and low-level design practice implementations.
+A collection of low-level design and machine-coding practice modules.
 
-## Practice modules
+## Modules
 
-| Module | Description | Current version |
-| --- | --- | --- |
-| [Parking Lot](ParkingLotDesign/README.md) | In-memory parking allocation, ticketing, and fee calculation. | v1 |
-| BookMyShow | Planned. | — |
+- [Parking Lot](ParkingLot/) — multi-floor, ticket-based parking with pricing, payments, and administrative configuration.
 
-## Versioning approach
-
-- `master` contains the latest reviewed version of each module.
-- New iterations are developed on versioned branches such as `v2` and merged through pull requests.
-- Each module owns its own README with version history, requirements, design notes, and implementation details.
-
-### Current structure
-
-- `ParkingLotDesign/entities` — domain objects such as `ParkingLot`, `ParkingSpot`, `Vehicle`, and `Ticket`.
-- `ParkingLotDesign/services` — parking operations and fee calculation.
-- `ParkingLotDesign/Orchestrator.java` — runnable demonstration.
-
-### Scope and future work
-
-Version 1 assumes a single lot and a single entry/exit flow. Future versions can add active-ticket validation, configurable pricing, tests, multiple floors, persistence, and concurrent gate handling.
+Each module keeps its detailed requirements, design notes, and implementation inside its own folder.

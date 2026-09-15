@@ -1,7 +1,8 @@
-package ParkingLotDesign.entities;
+package ParkingLot.domain;
 
 public enum VehicleType {
     CAR,
     BIKE,
-    TRUCK
+    TRUCK,
+    EV
 }
