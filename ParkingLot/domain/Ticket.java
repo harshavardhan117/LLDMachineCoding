@@ -18,6 +18,7 @@ public class Ticket {
         this.endTime = null;
     }
 
+    /** Closes the ticket exactly once, preventing it from being reused on exit. */
     public void closeTicket() {
         if (endTime != null) {
             throw new IllegalStateException("Ticket is already closed.");

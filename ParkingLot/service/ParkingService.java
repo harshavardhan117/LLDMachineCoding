@@ -1,6 +1,7 @@
 package ParkingLot.service;
 
 import ParkingLot.repository.*;
+import ParkingLot.service.payment.*;
 import ParkingLot.domain.*;
 import java.util.Date;
 
@@ -18,12 +19,17 @@ public class ParkingService {
         this.feeCalculatorService = feeCalculatorService;
     }
 
+    /**
+     * Owns the entry use case: choose a spot, reserve it, and persist the ticket.
+     * The controller only asks for this operation; it does not allocate spots itself.
+     */
     public Ticket parkVehicle(Vehicle vehicle) {
         java.util.List<ParkingSpot> availableSpots = parkingSpotRepository.getAvailableParkingSpots(vehicle.getType());
         if (availableSpots.isEmpty()) {
             throw new IllegalStateException("No compatible parking spot is available.");
         }
 
+        // V1 allocation rule: take the first compatible vacant spot.
         ParkingSpot spot = availableSpots.get(0);
         int id = ticketRepository.getAllTickets().size()+1;
         Ticket ticket = new Ticket(id, vehicle, spot);
@@ -32,6 +38,9 @@ public class ParkingService {
         return ticket;
     }
 
+    /**
+     * Owns the exit use case. A spot is released only after a completed payment.
+     */
     public Receipt unparkVehicle(int ticketId, PaymentMethod method) {
         Ticket ticket = ticketRepository.findByID(ticketId);
         if (ticket == null || !ticket.isActive()) {
@@ -41,6 +50,9 @@ public class ParkingService {
         double amount = feeCalculatorService.calculateTotalFees(ticket);
         int id = paymentRepository.getAllPayments().size()+1;
         Payment payment = new Payment(id, ticket.getId(), amount, method);
+        // The factory hides which payment implementation is selected for the method.
+        PaymentStrategy paymentStrategy = PaymentStrategyFactory.getPaymentStrategy(method);
+        paymentStrategy.pay(amount);
         paymentRepository.addPayment(payment);
         payment.updatePaymentStatus(PaymentStatus.COMPLETED);
 
@@ -55,5 +67,4 @@ public class ParkingService {
     }
 
 }
-
 

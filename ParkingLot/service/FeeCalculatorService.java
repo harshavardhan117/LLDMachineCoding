@@ -11,6 +11,10 @@ public class FeeCalculatorService {
         this.pricingRuleRepository = pricingRuleRepository;
     }
 
+    /**
+     * Charges full-day rates first. Remaining time inside the grace period is free;
+     * anything after it is rounded up to the next full hour.
+     */
     public double calculateTotalFees(Ticket ticket) {
         PricingRule rule = pricingRuleRepository.getPricingRule(ticket.getVehicle().getType());
         if (rule == null) {

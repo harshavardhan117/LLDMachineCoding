@@ -1,105 +1,147 @@
-# Parking Lot — High-Level Design
+# Parking Lot — LLD Study Guide
 
-An in-memory parking lot system for practicing low-level design, layering, and extensibility.
+This module is an in-memory parking-lot implementation used to practise a layered Java design. It is intentionally small enough for a machine-coding round while leaving clear extension points.
 
-## Scope
+## 1. Problem Statement
 
-The parking lot supports multiple floors, vehicle-specific spots, ticket-based entry and exit, pricing, payment recording, and administrative configuration.
+Design a parking lot where vehicles enter, receive an allocated spot and a ticket, then pay before leaving. The system supports multiple floors, vehicle-specific spots, pricing rules, and administrative configuration.
 
-## Functional Requirements
+## 2. Requirements and Assumptions
+
+### Functional requirements
 
 - Support `CAR`, `BIKE`, `TRUCK`, and `EV` vehicles.
-- Support multiple floors, such as B1 and B2, with multiple parking spots per floor.
-- Allocate a compatible available spot and issue a ticket when a vehicle enters.
-- Calculate hourly and daily parking charges using vehicle-specific pricing rules.
-- Support cash, UPI, and credit-card payment methods.
-- Generate a receipt after successful payment.
-- Allow administrators to manage floors, spots, and pricing rules.
+- Support multiple floors and multiple spots on each floor.
+- Allocate a compatible vacant spot during entry and issue a ticket.
+- Calculate vehicle-specific hourly and daily prices.
+- Accept cash, UPI, and credit-card payment methods.
+- Release a spot only after successful payment.
+- Allow an admin to add/remove floors and spots and manage pricing rules.
 
-## Entry Flow
+### Rules and failures handled
 
-1. A vehicle arrives at the entry gate.
-2. `ParkingService` finds an available compatible spot.
-3. The spot is marked occupied and linked to the new ticket.
-4. A ticket is saved and returned through `VehicleEntryController`.
+- Entry fails if there is no compatible vacant spot.
+- Exit fails for an unknown or already closed ticket.
+- Closing a ticket prevents it from being reused.
+- A configured grace period is free; remaining time is rounded up to an hour.
+- A stay longer than one day uses whole-day pricing plus the remaining hourly amount.
 
-## Exit Flow
+### Intentional simplifications
 
-1. The user presents a ticket ID and payment method.
-2. `ParkingService` validates the ticket is active.
-3. `FeeCalculatorService` calculates the fee from the parking duration and pricing rule.
-4. A payment record is created and processed.
-5. On successful payment, the spot is released, the ticket is closed, and a receipt is generated.
-6. If payment fails, the ticket remains active and the spot remains occupied.
+- Repositories use in-memory collections, not a database.
+- IDs are simple increasing integers for this practice module.
+- The current payment strategies print a successful simulated payment. They do not yet model provider failure.
+- One simulator thread is assumed; multi-gate concurrency is postponed.
+- `double` is used for money here to keep the exercise simple. Production code should usually use `BigDecimal` or a smallest-currency-unit integer.
 
-## Edge Cases
+## 3. Design Approach
 
-- No compatible spot is available.
-- A ticket ID is unknown or already completed.
-- Payment fails.
-- Partial-hour billing uses a configured grace period before rounding to the next hour.
-- Parking longer than a day uses daily pricing plus charges for remaining hours.
-
-## Architecture
+The main idea is separation of responsibility:
 
 ```text
-ParkingLotSimulator
+ParkingLotSimulator (client / composition root)
         ↓
-Controllers
+Controllers (request boundary, success/failure DTOs)
         ↓
-Services
+Services (use-case and business-flow coordination)
         ↓
-Repositories
+Repositories (storage access)
         ↓
 In-memory collections
 ```
 
-### Domain Layer
+### Why this layering matters
 
-- `ParkingLot` and `ParkingFloor`
-- `ParkingSpot`
-- `Vehicle`
-- `Ticket`
-- `PricingRule`
-- `Payment`
-- `Receipt`
-- Enums for vehicle type, payment method/status, and spot status
+- The simulator should not decide which spot to allocate or how to calculate fees.
+- Controllers should not access repositories directly.
+- `ParkingService` coordinates entry and exit because each flow changes several objects together.
+- Repositories only store/retrieve data; they do not decide business rules.
 
-### Repository Layer
+## 4. Core Domain Objects
 
-Repositories isolate storage access. They currently use in-memory `List`, `Map`, and `HashMap` collections.
+| Object | Responsibility |
+| --- | --- |
+| `Vehicle` | Registration number and `VehicleType`. |
+| `ParkingSpot` | Configured vehicle type plus current occupancy, vehicle, and ticket reference. |
+| `ParkingFloor` | Represents a floor such as B1 or B2. |
+| `Ticket` | Connects vehicle, allocated spot, issue time, and active/closed state. |
+| `PricingRule` | Hourly price, daily price, and grace period for a vehicle type. |
+| `Payment` | Payment record with selected method and status. |
+| `Receipt` | Successful exit result containing amount and exit time. |
 
-- `ParkingFloorRepository`
-- `ParkingSpotRepository`
-- `TicketRepository`
-- `PricingRuleRepository`
-- `PaymentRepository`
+## 5. Entry Flow
 
-### Service Layer
+1. The client calls `VehicleEntryController.parkVehicle(vehicle)`.
+2. The controller delegates to `ParkingService`.
+3. `ParkingService` requests compatible vacant spots from `ParkingSpotRepository`.
+4. It selects the first candidate, marks it occupied, creates a ticket, and saves the ticket.
+5. The controller returns an `EntryResult` containing the ticket ID or an error message.
 
-- `ParkingService` coordinates vehicle entry and exit.
-- `FeeCalculatorService` calculates hourly/daily fees and applies grace periods.
-- `AdminService` manages floors, spots, and pricing rules.
+**Interview point:** the controller does not first fetch a spot and then reserve it. `ParkingService` owns that whole workflow, which avoids splitting one business operation across layers.
 
-### Controller Layer
+## 6. Exit Flow
 
-- `VehicleEntryController`
-- `VehicleExitController`
-- `AdminController`
+1. The client calls `VehicleExitController.unparkVehicle(ticketId, paymentMethod)`.
+2. `ParkingService` validates that the ticket exists and is active.
+3. `FeeCalculatorService` calculates the amount using `PricingRule`.
+4. `PaymentStrategyFactory` selects the payment strategy for cash, UPI, or card.
+5. The payment is stored and marked completed in the current simulation.
+6. The spot becomes vacant, the ticket closes, and a `Receipt` is returned.
 
-Controllers return `EntryResult` and `ExitResult` DTOs to the simulator/client.
+**Important invariant:** do not release the spot or close the ticket until payment succeeds. This preserves the correct state if a future payment strategy reports failure.
 
-## Current Simulator
+## 7. Pattern Used: Strategy
 
-`ParkingLotSimulator` wires repositories, services, and controllers. It currently demonstrates:
+`PaymentStrategy` is useful because payment methods may later have different provider calls, validations, or failure behavior.
 
-1. Creating a floor, car spot, and car pricing rule.
-2. Parking a car and issuing a ticket.
-3. Exiting with credit-card payment.
+```text
+PaymentMethod → PaymentStrategyFactory → PaymentStrategy
+                                      ├── CashPaymentStrategy
+                                      ├── UpiPaymentStrategy
+                                      └── CreditCardPaymentStrategy
+```
 
-## Planned Extensions
+`ParkingService` only asks the selected strategy to process the amount. It does not contain `if/else` logic specific to UPI or cards.
 
-- Implement `PaymentStrategy` for method-specific payment behavior.
-- Add receipt storage and retrieval.
-- Add richer EV charging compatibility rules.
-- Add concurrency handling for multiple entry and exit gates.
+## 8. Package Guide
+
+| Package | What belongs there |
+| --- | --- |
+| `domain` | Core data and state objects, enums. |
+| `repository` | In-memory storage operations. |
+| `service` | Entry, exit, billing, and admin use cases. |
+| `service.payment` | Payment strategy interface, implementations, factory. |
+| `controller` | Calls services and converts exceptions into result DTOs. |
+| `dto` | `EntryResult` and `ExitResult` returned to the client. |
+| root `ParkingLotSimulator` | Dependency wiring and demonstration scenarios. |
+
+## 9. Current Simulator Scenario
+
+`ParkingLotSimulator` demonstrates the happy path:
+
+1. Create repositories, services, and controllers.
+2. Add floor B1, a car spot, and a car pricing rule through the admin controller.
+3. Park a car and receive a ticket.
+4. Exit using a credit card and receive a successful result.
+
+Run it from the repository root:
+
+```powershell
+New-Item -ItemType Directory -Force out
+javac -d out (Get-ChildItem -Recurse -Filter *.java | ForEach-Object FullName)
+java -cp out ParkingLot.ParkingLotSimulator
+```
+
+## 10. Next Practice Exercises
+
+Do these one at a time rather than rewriting the whole project:
+
+1. Change `PaymentStrategy.pay(...)` to return success/failure and simulate payment failure.
+2. Add negative simulator scenarios: full lot, invalid ticket, reused ticket, and failed payment.
+3. Improve allocation: choose a spot by floor or create a separate allocation strategy.
+4. Add EV-specific charging information if it becomes an explicit requirement.
+5. After practising concurrency separately, make spot allocation and ticket ID generation safe for multiple entry/exit gates.
+
+## 11. Interview Checklist
+
+Before coding, state the requirements, constraints, billing assumption, and scope. Then build the happy path first. If time remains, add one or two meaningful failures and explain extensions such as payment strategies or concurrency. Do not force every design pattern into the initial solution; introduce one when the changing behavior actually needs it.

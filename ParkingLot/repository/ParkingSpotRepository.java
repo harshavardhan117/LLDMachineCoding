@@ -7,6 +7,7 @@ import ParkingLot.domain.*;
 
 
 public class ParkingSpotRepository {
+    // An in-memory replacement for a database table of spots grouped by floor.
     Map<ParkingFloor, List<ParkingSpot>> parkingSpots = new HashMap<>();
 
     public void addParkingSpot(ParkingFloor floor, ParkingSpot spot) {
@@ -28,6 +29,7 @@ public class ParkingSpotRepository {
     }
 
     public List<ParkingSpot> getAvailableParkingSpots(VehicleType type){
+        // Allocation policy is deliberately outside this repository; it only returns candidates.
         List<ParkingSpot> availableSpots = new ArrayList<>();
         for (List<ParkingSpot> spots : parkingSpots.values()) {
             for (ParkingSpot spot : spots) {
@@ -40,6 +42,7 @@ public class ParkingSpotRepository {
     }
 
     public void occupySpot(ParkingSpot spot, int ticketId, Vehicle vehicle) {
+        // Keep spot state and the ticket/vehicle association together.
         spot.setStatus(SpotStatus.OCCUPIED);
         spot.setCurrentTicketID(ticketId);
         spot.setVehicle(vehicle);
