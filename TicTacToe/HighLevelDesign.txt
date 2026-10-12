@@ -1,0 +1,23 @@
+Tic Tac Toe - Version 1 Requirements
+
+Goal
+- Create a Java application to practise Low-Level Design.
+- Design the classes and modules, then simulate a game using Main.java.
+
+Game Requirements
+- The game uses a standard 3x3 board.
+- Exactly two players play the game.
+- One player uses X and the other uses O.
+- Players take alternate turns.
+- On each turn, a player selects one cell on the board.
+- A move is valid only when the selected cell is within the board and is empty.
+- After a valid move, the selected cell contains the current player's symbol.
+- A player wins by filling an entire row, column, or diagonal with their symbol.
+- The game ends immediately when a player wins.
+- The game is a draw when all nine cells are filled and neither player has won.
+
+Assumptions
+- The board size is fixed at 3x3.
+- Only human players are supported.
+- Input is provided through a simple console-based simulator.
+- Undo or revert is outside the scope of version 1.
